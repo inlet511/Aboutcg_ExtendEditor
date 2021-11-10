@@ -7,10 +7,21 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "LevelEditor.h"
+#include "SImage.h"
+#include "SWidget.h"
 
 static const FName SampleToolTabName("SampleTool");
 
 #define LOCTEXT_NAMESPACE "FSampleToolModule"
+
+
+TSharedRef<SWidget> CreateWidgetContent(TSharedRef<FUICommandList> InCommandList)
+{
+	FMenuBuilder MenuBuilder(true, InCommandList);
+	MenuBuilder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	return MenuBuilder.MakeWidget();
+}
+
 
 void FSampleToolModule::StartupModule()
 {
@@ -43,6 +54,13 @@ void FSampleToolModule::StartupModule()
 		
 		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
 	}
+
+	{
+		TSharedPtr<FExtender> MenuBarExtender = MakeShareable(new FExtender());
+		MenuBarExtender->AddMenuBarExtension("Help", EExtensionHook::After, PluginCommands, FMenuBarExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddMenubarExtension));
+
+		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuBarExtender);
+	}
 }
 
 void FSampleToolModule::ShutdownModule()
@@ -67,12 +85,82 @@ void FSampleToolModule::PluginButtonClicked()
 
 void FSampleToolModule::AddMenuExtension(FMenuBuilder& Builder)
 {
+	Builder.BeginSection(TEXT("SampleSection"));
 	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.EndSection();
 }
+
+void FSampleToolModule::AddMenubarExtension(FMenuBarBuilder& Builder)
+{
+
+	Builder.AddPullDownMenu(
+		LOCTEXT("MenuName", "Ken's"),
+		LOCTEXT("ButtonName", "I am button"),
+		FNewMenuDelegate::CreateRaw(this, &FSampleToolModule::AddPullDown),
+		"MyHookPoint"
+	);
+
+}
+
+void FSampleToolModule::AddPullDown(FMenuBuilder& Builder)
+{
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuSeparator();
+	Builder.AddSubMenu(
+		LOCTEXT("SubMenuName", "MoreContent"),
+		LOCTEXT("Tooltip", "This is a submenu"),
+		FNewMenuDelegate::CreateRaw(this,&FSampleToolModule::AddSubMenu)
+	);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+
+
+}
+
+void FSampleToolModule::AddSubMenu(FMenuBuilder& Builder)
+{
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+	Builder.AddWidget(
+		SNew(SImage),
+		LOCTEXT("ImageName","An Image")
+	);
+	Builder.AddEditableText(
+		LOCTEXT("LabelName", "NameField"),
+		LOCTEXT("TextTip", "Some Text as tip"),
+		FSlateIcon(),
+		LOCTEXT("Text_to_Edit","Here are some important texts")
+	);
+
+	Builder.AddSearchWidget();
+
+	Builder.AddWrapperSubMenu(
+		LOCTEXT("WrapperName", "NameField"),
+		LOCTEXT("WrapperTip", "Some Text as tip"),
+		//FOnGetContent::CreateRaw(this, &FSampleToolModule::CreateWidgetContent),
+		FOnGetContent::CreateStatic(&CreateWidgetContent,PluginCommands.ToSharedRef()),
+		FSlateIcon()
+	);
+}
+
 
 void FSampleToolModule::AddToolbarExtension(FToolBarBuilder& Builder)
 {
-	Builder.AddToolBarButton(FSampleToolCommands::Get().PluginAction);
+	//Builder.AddToolBarButton(FSampleToolCommands::Get().PluginAction);
+
+	Builder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateStatic(&CreateWidgetContent, PluginCommands.ToSharedRef()),
+		LOCTEXT("ButtonName","SampleButton"),
+		LOCTEXT("ButtonTips", "SampleTips"),
+		FSlateIcon()
+	);
+
+
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -23,6 +23,11 @@ private:
 
 	void AddToolbarExtension(FToolBarBuilder& Builder);
 	void AddMenuExtension(FMenuBuilder& Builder);
+	void AddMenubarExtension(FMenuBarBuilder& Builder);
+
+	void AddPullDown(FMenuBuilder& Builder);
+	void AddSubMenu(FMenuBuilder& Builder);
+
 
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
