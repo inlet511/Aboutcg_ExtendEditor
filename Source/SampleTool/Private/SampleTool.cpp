@@ -9,6 +9,7 @@
 #include "LevelEditor.h"
 #include "SImage.h"
 #include "SWidget.h"
+#include "ContentBrowserModule.h"
 
 static const FName SampleToolTabName("SampleTool");
 
@@ -39,27 +40,46 @@ void FSampleToolModule::StartupModule()
 		FExecuteAction::CreateRaw(this, &FSampleToolModule::PluginButtonClicked),
 		FCanExecuteAction());
 		
+	//获取LevelEditor模块
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	
+	// 给某个菜单添加子内容
 	{
-		TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender());
-		MenuExtender->AddMenuExtension("WindowLayout", EExtensionHook::After, PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddMenuExtension));
+		TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender());
+		MenuExtender->AddMenuExtension("WindowLayout", EExtensionHook::After, PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddMenuEntries));
 
 		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
 	}
 	
+	// 给工具栏添加入口
 	{
-		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-		ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, PluginCommands, FToolBarExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddToolbarExtension));
+		TSharedRef<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+		ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, PluginCommands, FToolBarExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddToolbarEntries));
 		
 		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
 	}
 
+	// 给菜单栏添加入口
 	{
-		TSharedPtr<FExtender> MenuBarExtender = MakeShareable(new FExtender());
-		MenuBarExtender->AddMenuBarExtension("Help", EExtensionHook::After, PluginCommands, FMenuBarExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddMenubarExtension));
+		TSharedRef<FExtender> MenuBarExtender = MakeShareable(new FExtender());
+		MenuBarExtender->AddMenuBarExtension("Help", EExtensionHook::After, PluginCommands, FMenuBarExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddMenubarEntries));
 
 		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuBarExtender);
+	}
+
+	// 给场景中或者Outliner中右键菜单添加入口
+	{
+		auto& contextMenuArray = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
+		contextMenuArray.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FSampleToolModule::AddContextMenuItem));
+		DelHandle = contextMenuArray.Last().GetHandle(); // 储存代理的方法
+	}
+
+	// 给资源管理器右键添加入口
+	{
+		//注意这里用的管理模块不是LevelEditorModule了，而是ContentBrowserModule, 需要在.cs文件中添加ContentBrowser模块
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		auto& PathViewAMenuArray = ContentBrowserModule.GetAllPathViewContextMenuExtenders();
+		PathViewAMenuArray.Add(FContentBrowserMenuExtender_SelectedPaths::CreateRaw(this, &FSampleToolModule::AddAssetBrowserContextMenuItem));
 	}
 }
 
@@ -83,7 +103,7 @@ void FSampleToolModule::PluginButtonClicked()
 	FMessageDialog::Open(EAppMsgType::Ok, DialogText);
 }
 
-void FSampleToolModule::AddMenuExtension(FMenuBuilder& Builder)
+void FSampleToolModule::AddMenuEntries(FMenuBuilder& Builder)
 {
 	Builder.BeginSection(TEXT("SampleSection"));
 	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
@@ -94,7 +114,7 @@ void FSampleToolModule::AddMenuExtension(FMenuBuilder& Builder)
 	Builder.EndSection();
 }
 
-void FSampleToolModule::AddMenubarExtension(FMenuBarBuilder& Builder)
+void FSampleToolModule::AddMenubarEntries(FMenuBarBuilder& Builder)
 {
 
 	Builder.AddPullDownMenu(
@@ -148,7 +168,53 @@ void FSampleToolModule::AddSubMenu(FMenuBuilder& Builder)
 }
 
 
-void FSampleToolModule::AddToolbarExtension(FToolBarBuilder& Builder)
+TSharedRef<FExtender> FSampleToolModule::AddContextMenuItem(const TSharedRef<FUICommandList> InCommandList, const TArray<AActor*> InActor)
+{	
+	TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender());
+	EditorPrint(FString::Printf(TEXT("Actor Number = %d"), InActor.Num()));
+	if(InActor.Num() >0)
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedRef<FUICommandList> LevelCommand = LevelEditorModule.GetGlobalLevelEditorActions();
+
+		MenuExtender->AddMenuExtension("NewFolder", EExtensionHook::After, LevelCommand, FMenuExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddSelectedActorButton));
+	}
+	return MenuExtender;
+}
+
+void FSampleToolModule::EditorPrint(FString MyString)
+{
+	if(GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, MyString);
+	}
+}
+
+void FSampleToolModule::AddSelectedActorButton(FMenuBuilder& Builder)
+{
+	Builder.AddMenuEntry(FSampleToolCommands::Get().PluginAction);
+}
+
+TSharedRef<FExtender> FSampleToolModule::AddAssetBrowserContextMenuItem(const TArray<FString>& SelectedPaths)
+{
+	TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender());
+	EditorPrint(FString::Printf(TEXT("Actor Number = %d"), SelectedPaths.Num()));
+	if (SelectedPaths.Num() > 0)
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+
+		MenuExtender->AddMenuExtension("ActorControl", EExtensionHook::After, PluginCommands, FMenuExtensionDelegate::CreateRaw(this, &FSampleToolModule::AddSelectedActorButton));
+	}
+
+	for(auto& path : SelectedPaths)
+	{
+		EditorPrint(path);
+	}
+
+	return MenuExtender;
+}
+
+void FSampleToolModule::AddToolbarEntries(FToolBarBuilder& Builder)
 {
 	//Builder.AddToolBarButton(FSampleToolCommands::Get().PluginAction);
 

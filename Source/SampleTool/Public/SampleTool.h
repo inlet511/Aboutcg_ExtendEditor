@@ -7,6 +7,7 @@
 
 class FToolBarBuilder;
 class FMenuBuilder;
+class FUICommandList;
 
 class FSampleToolModule : public IModuleInterface
 {
@@ -21,14 +22,20 @@ public:
 	
 private:
 
-	void AddToolbarExtension(FToolBarBuilder& Builder);
-	void AddMenuExtension(FMenuBuilder& Builder);
-	void AddMenubarExtension(FMenuBarBuilder& Builder);
+	void AddToolbarEntries(FToolBarBuilder& Builder);
+	void AddMenuEntries(FMenuBuilder& Builder);
+	void AddMenubarEntries(FMenuBarBuilder& Builder);
 
 	void AddPullDown(FMenuBuilder& Builder);
 	void AddSubMenu(FMenuBuilder& Builder);
 
+	TSharedRef<FExtender> AddContextMenuItem(const TSharedRef<FUICommandList> InCommandList, const TArray<AActor*> InActor);
+	void EditorPrint(FString MyString);
+	void AddSelectedActorButton(FMenuBuilder& Builder);
+	FDelegateHandle DelHandle;
+
+	TSharedRef<FExtender> AddAssetBrowserContextMenuItem(const TArray<FString>& SelectedPaths);
 
 private:
-	TSharedPtr<class FUICommandList> PluginCommands;
+	TSharedPtr<FUICommandList> PluginCommands;
 };

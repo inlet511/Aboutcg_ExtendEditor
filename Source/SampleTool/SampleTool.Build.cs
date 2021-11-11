@@ -42,6 +42,7 @@ public class SampleTool : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"ContentBrowser"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
